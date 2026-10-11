@@ -1,0 +1,15 @@
+I've studied your Dawn of Worship code and the JSON files (two schemas: flat `verses[]` and nested book → chapter → verse). Now I'm reading the design guidance, then I'll build the app.I've built the app as a single `index.html`. It hasn't been run or tested yet, so open it on your phone first and tell me what breaks.
+
+Put it in your repo's main folder next to the Bible JSONs. It reads all ten files you uploaded (AMP, GNB, NLT, NIV, BBE, ASVs, Bishops, Geneva, WEB), plus other common JSON layouts.
+
+**What it does**
+- **Reading:** pick a book and chapter, swipe left or right to change chapter, and switch versions from the chip in the top-left. It remembers your place and cleans up Strong's tags and stray quote spacing.
+- **Search:** type a reference like `Jn 3:16` or `1 Cor 13`, or a word or phrase, to search the current version. This copies Dawn of Worship's reference parsing.
+- **Dock:** select verses by tapping them, then tap Dock. Each saved passage shows a preview you can open, copy, share or delete. It stores the reference, so it works with any version.
+- **Highlights:** three colors, which are the "marked" verses. They apply across versions.
+- **Copy and share:** Copy, Share (your phone's share sheet) and a WhatsApp button, all from the selection bar. There's an option to include verse numbers.
+- **Sync:** the 🔄 button lists your GitHub folder, imports new JSONs and re-downloads any that changed. It does this the same way Dawn of Worship does when the page runs on `github.io`. If it's hosted elsewhere, enter `owner/repo/folder` in More. It also syncs when the app opens.
+- **Import and backup:** More has an import button for Bible JSONs from your device. "Save backup file" or "Share backup" exports your dock, highlights and settings, and importing that file on another device merges or replaces them.
+- **Theme and layout:** light, dark or auto, plus a text-size slider. In portrait there's a bottom tab bar. In phone landscape the tabs move to a side rail. On tablet or PC the reader and the Search, Dock and More panels sit side by side.
+
+**Left out of this first version:** verse-by-verse comparison across versions, notes on dock items, and offline caching of the app itself. Your Bibles are stored on the device, but the page needs a connection the first time you open it. Tell me which you want next.
