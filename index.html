@@ -19,10 +19,14 @@ header{grid-area:head;display:flex;align-items:center;gap:6px;padding:8px 10px;b
 #reader,#side{grid-area:main;overflow:auto;min-height:0;position:relative}
 #app:not([data-view=read]) #reader,#app[data-view=read] #side{display:none}
 #txt{max-width:44rem;margin:0 auto;padding:14px 18px 24px;font:var(--fs)/1.65 var(--serif)}
-.v{margin:0;padding:5px 8px 5px 10px;border-radius:6px;cursor:pointer}
+.v{margin:0;padding:5px 8px 5px 10px;border-radius:6px;cursor:pointer;position:relative}
 .v b{font:600 .62em var(--sans);color:var(--ac);margin-right:6px;vertical-align:.45em}
 .v[data-m="1"]{background:var(--h1)}.v[data-m="2"]{background:var(--h2)}.v[data-m="3"]{background:var(--h3)}
 .v.sel{background:var(--sel);box-shadow:inset 3px 0 0 var(--ac)}.v.fl{outline:2px solid var(--ac)}
+:root{--dk:#c9932e}[data-theme=dark]{--dk:#e6b94f}
+.v.dk{border-left:4px solid var(--dk);padding-right:24px}
+.v.dk::after{content:"";position:absolute;top:0;right:7px;width:11px;height:18px;background:var(--dk);clip-path:polygon(0 0,100% 0,100% 100%,50% 78%,0 100%)}
+.cdk{margin:0 0 10px;padding:6px 10px;border-left:4px solid var(--dk);background:var(--sel);border-radius:6px;font:600 13px var(--sans);color:var(--mu)}
 .pg{display:flex;gap:10px;margin-top:20px}.pg button{flex:1;padding:12px;border:1px solid var(--ln);border-radius:10px;background:var(--sf);font-weight:600}
 #bar{position:sticky;bottom:0;display:none;gap:4px;align-items:center;overflow-x:auto;padding:8px 10px;background:var(--sf);border-top:1px solid var(--ln)}
 #bar.on{display:flex}#bar button{display:flex;align-items:center;gap:5px;padding:8px 10px;border-radius:9px;border:1px solid var(--ln);white-space:nowrap;font-size:14px}
@@ -52,6 +56,7 @@ label.tg{display:flex;justify-content:space-between;align-items:center;padding:8
 #sh .pn{left:50%;right:auto;width:480px;transform:translateX(-50%)}}
 @media (orientation:landscape) and (max-height:520px){#app{grid-template:"nav head" auto "nav main" 1fr/64px minmax(0,1fr)}nav{flex-direction:column;justify-content:center;border-top:0;border-right:1px solid var(--ln)}header{padding:4px 10px}#toast{bottom:20px}}
 @media (prefers-reduced-motion:reduce){.spin svg{animation:none}}
+input[type=time]{padding:7px 9px;border:1px solid var(--ln);border-radius:10px;background:var(--sf);color:inherit;font:inherit}
 </style></head><body>
 <div id="app" data-view="read">
 <header><button class="chip" id="ver" aria-label="Choose version"></button><button id="ref" aria-label="Choose book and chapter"></button>
@@ -62,7 +67,7 @@ label.tg{display:flex;justify-content:space-between;align-items:center;padding:8
 <section class="pane" id="p-dock"></section><section class="pane" id="p-more"></section></aside>
 <nav></nav></div>
 <div id="sh"><div class="bk"></div><div class="pn"><div class="hd"><span></span><button class="ib" id="shx" aria-label="Close"></button></div><div class="bo"></div></div></div>
-<div id="toast" role="status"></div><input type="file" id="imp" accept=".json,application/json" multiple hidden>
+<div id="toast" role="status"></div><input type="file" id="imp" multiple hidden>
 <script>
 // ---------- helpers ----------
 const $=s=>document.querySelector(s),nz=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,''),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -90,25 +95,61 @@ function norm(raw,file){ // recognises: metadata+verses[], {Book:{ch:{v:text}}},
 function parseRef(q,books){const t=q.trim().replace(/\s*[-–—]\s*/g,'-').replace(/\s*[:.]\s*/g,':').replace(/\s+/g,' ');
  const m=t.match(/^((?:[1-3]|i{1,3})?\s?[A-Za-z][A-Za-z ]*?)[\s:]*(\d+)?(?:[\s:]+(\d+)(?:-(\d+))?)?$/i);if(!m)return null;const b=bookKey(m[1]);if(!b||(books&&!books.includes(b)))return null;
  const a=m[3]?+m[3]:null;return{b,c:m[2]?+m[2]:1,a,z:m[4]?Math.max(+m[4],a):a}}
+const VER='0.0.4';
+// ---------- EasyWorship .ewb reader ----------
+const EWL={KJV:'King James Version',NKJV:'New King James Version',NIV:'New International Version',AMP:'Amplified Bible',AMPC:'Amplified Bible, Classic',MSG:'The Message',ESV:'English Standard Version',NLT:'New Living Translation',NASB:'New American Standard Bible',CEV:'Contemporary English Version',GNB:'Good News Bible',GNT:'Good News Translation',NRSV:'New Revised Standard Version',RSV:'Revised Standard Version',ASV:'American Standard Version',WEB:'World English Bible',CSB:'Christian Standard Bible',HCSB:'Holman Christian Standard Bible',TLB:'The Living Bible',NCV:'New Century Version',ERV:'Easy-to-Read Version',MEV:'Modern English Version',NET:'New English Translation',TPT:'The Passion Translation',ISV:'International Standard Version',NIRV:'New International Reader\u2019s Version',TNIV:'Today\u2019s New International Version',YLT:'Young\u2019s Literal Translation',DARBY:'Darby Bible',NJB:'New Jerusalem Bible',BBE:'Bible in Basic English'};
+const isEwb=u=>u.length>0x80&&String.fromCharCode(...u.subarray(0,22))=='EasyWorship Bible Text';
+const LB=[3,4,5,6,7,8,9,10,11,13,15,17,19,23,27,31,35,43,51,59,67,83,99,115,131,163,195,227,258],LE=[0,0,0,0,0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5,0],DB=[1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577],DE=[0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13];
+function huff(L){const c=new Uint16Array(16),s=new Uint16Array(L.length),o=new Uint16Array(16);for(const l of L)c[l]++;c[0]=0;for(let i=1;i<16;i++)o[i]=o[i-1]+c[i-1];L.forEach((l,i)=>{if(l)s[o[l]++]=i});return{c,s}}
+function inflateJS(u,p){ // fallback for browsers without DecompressionStream
+ let bb=0,bc=0,out=new Uint8Array(u.length*5+1024),n=0;
+ const bit=()=>{if(!bc){if(p>=u.length)throw Error('eof');bb=u[p++];bc=8}const b=bb&1;bb>>=1;bc--;return b},bits=k=>{let v=0;for(let i=0;i<k;i++)v|=bit()<<i;return v},
+ dec=h=>{let code=0,first=0,idx=0;for(let l=1;l<16;l++){code|=bit();const c=h.c[l];if(code-c<first)return h.s[idx+code-first];idx+=c;first+=c;first<<=1;code<<=1}throw Error('bad code')},
+ put=b=>{if(n>=out.length){const o=new Uint8Array(out.length*2);o.set(out);out=o}out[n++]=b};
+ let fin;do{fin=bit();const t=bits(2);
+  if(t==0){bc=0;const len=u[p]|u[p+1]<<8;p+=4;for(let i=0;i<len;i++)put(u[p++])}
+  else if(t<3){let lh,dh;if(t==1){const l=new Uint8Array(288);l.fill(8,0,144);l.fill(9,144,256);l.fill(7,256,280);l.fill(8,280);lh=huff(l);dh=huff(new Uint8Array(30).fill(5))}
+   else{const nl=bits(5)+257,nd=bits(5)+1,nc=bits(4)+4,ord=[16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15],cc=new Uint8Array(19);for(let i=0;i<nc;i++)cc[ord[i]]=bits(3);const ch=huff(cc),lens=new Uint8Array(nl+nd);
+    for(let i=0;i<nl+nd;){const s=dec(ch);if(s<16)lens[i++]=s;else{let r,v=0;if(s==16){v=lens[i-1];r=3+bits(2)}else if(s==17)r=3+bits(3);else r=11+bits(7);while(r--)lens[i++]=v}}lh=huff(lens.subarray(0,nl));dh=huff(lens.subarray(nl))}
+   for(;;){const s=dec(lh);if(s<256)put(s);else if(s==256)break;else{const len=LB[s-257]+bits(LE[s-257]),d=dec(dh),dist=DB[d]+bits(DE[d]);for(let i=0;i<len;i++)put(out[n-dist])}}}
+  else throw Error('bad block')}while(!fin);
+ return out.subarray(0,n)}
+async function unz(u){if(u[0]==0x78&&typeof DecompressionStream=='function'){try{return new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer())}catch(e){}}
+ return inflateJS(u,(u[0]&15)==8&&((u[0]<<8|u[1])%31==0)?2:0)}
+// .ewb = "EasyWorship Bible Text" header, 66 book records (224 bytes each) pointing at zlib-compressed text: "chapter:verse text" per line, ranges like "26:20-21"
+async function parseEwb(u,file){if(!isEwb(u))return null;
+ const dv=new DataView(u.buffer,u.byteOffset,u.byteLength),rs=dv.getUint32(0x1c,true)||224,base=0x78,D={},R={};let n=0;
+ const dec=t=>{try{return new TextDecoder('utf-8',{fatal:true}).decode(t)}catch(e){return new TextDecoder('windows-1252').decode(t)}};
+ for(let i=0;i<66;i++){const r=base+i*rs;if(r+0xbc>u.length)break;const off=dv.getUint32(r+0xb0,true),ln=dv.getUint32(r+0xb8,true);if(!ln||off<0x80||off+ln>u.length)continue;
+  let t;try{t=await unz(u.subarray(off,off+ln))}catch(e){t=u.subarray(off,off+ln)}
+  const bn=BK[i].n,B={};let last=null;
+  for(const line of dec(t).split(/\r\n|\n|\r/)){const m=line.match(/^(\d+):(\d+)(?:[-\u2013](\d+))?(?:\s(.*))?$/);
+   if(m){const c=+m[1],v=+m[2],e=+m[3];(B[c]??={})[v]=cl(m[4]||'');last=[c,v];if(e>v)((R[bn]??={})[c]??={})[v]=e}
+   else if(last&&line.trim())B[last[0]][last[1]]=cl(B[last[0]][last[1]]+' '+line)}
+  for(const c in B){for(const v in B[c])if(!B[c][v]){delete B[c][v];if(R[bn]?.[c])delete R[bn][c][v]}else n++;if(!Object.keys(B[c]).length)delete B[c]}
+  if(Object.keys(B).length)D[bn]=B}
+ if(n<100)return null;
+ const stem=String(file||'Bible').replace(/\.ewb$/i,''),id=stem.toUpperCase().replace(/[^A-Z0-9]+/g,'')||'BIBLE';
+ return{id,label:EWL[id]||stem,data:D,books:BK.map(b=>b.n).filter(b=>D[b]),n,rg:R}}
 // ---------- storage (IndexedDB holds versions; localStorage holds settings, dock, marks) ----------
 const idb=new Promise((ok,no)=>{const q=indexedDB.open('scripture',1);q.onupgradeneeded=()=>{q.result.createObjectStore('meta',{keyPath:'id'});q.result.createObjectStore('bible')};q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)});
 const st=async(s,m,f)=>{const d=await idb;return new Promise((ok,no)=>{const t=d.transaction(s,m),r=f(t.objectStore(s));t.oncomplete=()=>ok(r&&r.result);t.onerror=()=>no(t.error)})};
-let S={theme:'auto',size:19,ver:'',book:'John',ch:1,repo:'',auto:true,nums:false,...ls('sr.s',{})},dock=ls('sr.dock',[]),marks=ls('sr.marks',{}),vers=[],cache=new Map(),sel=new Set(),view='read';
+let S={theme:'auto',size:19,ver:'',book:'John',ch:1,repo:'',auto:true,nums:false,cloudDir:'',cloudFile:'',...ls('sr.s',{})},dock=ls('sr.dock',[]),marks=ls('sr.marks',{}),vers=[],cache=new Map(),sel=new Set(),view='read';
 const save=()=>{localStorage.setItem('sr.s',JSON.stringify(S));localStorage.setItem('sr.dock',JSON.stringify(dock));localStorage.setItem('sr.marks',JSON.stringify(marks))};
-const loadVers=async()=>{vers=((await st('meta','readonly',s=>s.getAll()))||[]).sort((a,b)=>a.id.localeCompare(b.id));if(!vers.find(v=>v.id==S.ver))S.ver=(vers.find(v=>v.id=='NIV')||vers[0]||{}).id||''};
-const saveBible=async(b,file,sha)=>{await st('bible','readwrite',s=>s.put({data:b.data,books:b.books},b.id));await st('meta','readwrite',s=>s.put({id:b.id,label:b.label,file,sha:sha||'',n:b.n}));cache.delete(b.id)};
+const loadVers=async()=>{vers=((await st('meta','readonly',s=>s.getAll()))||[]).filter(v=>v.id[0]!='_').sort((a,b)=>a.id.localeCompare(b.id));if(!vers.find(v=>v.id==S.ver))S.ver=(vers.find(v=>v.id=='NIV')||vers[0]||{}).id||''};
+const saveBible=async(b,file,sha)=>{await st('bible','readwrite',s=>s.put({data:b.data,books:b.books,rg:b.rg||{}},b.id));await st('meta','readwrite',s=>s.put({id:b.id,label:b.label,file,sha:sha||'',n:b.n}));cache.delete(b.id)};
 async function getBible(id){if(cache.has(id)){const x=cache.get(id);cache.delete(id);cache.set(id,x);return x}const x=await st('bible','readonly',s=>s.get(id));if(!x)return null;cache.set(id,x);if(cache.size>3)cache.delete(cache.keys().next().value);return x}
 // ---------- reference text, copy, share ----------
 const rng=a=>{a=[...a].sort((x,y)=>x-y);const o=[];for(let i=0;i<a.length;){let j=i;while(a[j+1]==a[j]+1)j++;o.push(j>i?a[i]+'-'+a[j]:''+a[i]);i=j+1}return o.join(', ')};
-function fmt(B,ver,book,ch,nums,wa){const c=B.data[book]?.[ch]||{},ns=[...nums].sort((a,b)=>a-b),tx=ns.map(n=>(S.nums&&ns.length>1?n+' ':'')+(c[n]||'')).join(' '),ref=`${book} ${ch}:${rng(ns)} (${ver})`;return wa?`*${ref}*\n${tx}`:`“${tx}”\n— ${ref}`}
+function fmt(B,ver,book,ch,nums,wa){const c=B.data[book]?.[ch]||{},ns=[...nums].sort((a,b)=>a-b),R=B.rg?.[book]?.[ch]||{},ex=new Set(ns.flatMap(n=>{const a=[n];for(let k=n+1;k<=(R[n]||0);k++)a.push(k);return a})),tx=ns.map(n=>(S.nums&&ns.length>1?(R[n]>n?n+'-'+R[n]:n)+' ':'')+(c[n]||'')).join(' '),ref=`${book} ${ch}:${rng(ex)} (${ver})`;return wa?`*${ref}*\n${tx}`:`“${tx}”\n— ${ref}`}
 async function copy(t){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.append(a);a.select();document.execCommand('copy');a.remove()}toast('Copied')}
 async function share(t,wa){if(wa){open('https://wa.me/?text='+encodeURIComponent(t),'_blank');return}if(navigator.share){try{await navigator.share({text:t})}catch(e){}}else open('https://wa.me/?text='+encodeURIComponent(t),'_blank')}
 // ---------- reader ----------
 async function render(fl){const t=$('#txt');sel.clear();bar();$('#ver').textContent=S.ver||'—';$('#ref').textContent=`${S.book} ${S.ch}`;const B=S.ver&&await getBible(S.ver);
- if(!B){t.innerHTML=`<div class="empty"><h2>No Bible versions yet</h2><p class="mu">Sync the JSON files from your GitHub folder, or import them from this device.</p><div class="row" style="justify-content:center"><button class="btn pri" data-a="sync">Sync from GitHub</button><button class="btn" data-a="imp">Import from device</button></div></div>`;return}
+ if(!B){t.innerHTML=`<div class="empty"><h2>No Bible versions yet</h2><p class="mu">Sync your Bible files (.json or .ewb) from your GitHub folder, or import them from this device.</p><div class="row" style="justify-content:center"><button class="btn pri" data-a="sync">Sync from GitHub</button><button class="btn" data-a="imp">Import from device</button></div></div>`;return}
  if(!B.data[S.book]){S.book=B.books[0]}const cs=Object.keys(B.data[S.book]).map(Number).sort((a,b)=>a-b);if(!B.data[S.book][S.ch])S.ch=cs[0];
- const c=B.data[S.book][S.ch];t.innerHTML=Object.keys(c).map(Number).sort((a,b)=>a-b).map(n=>`<p class="v" data-n="${n}" data-m="${marks[S.book+' '+S.ch+':'+n]||''}"><b>${n}</b>${esc(c[n])}</p>`).join('')+`<div class="pg"><button data-a="prev">‹ Previous</button><button data-a="next">Next ›</button></div>`;
- save();$('#reader').scrollTop=0;if(fl){const e=t.querySelector(`[data-n="${fl}"]`);if(e){e.scrollIntoView({block:'center'});e.classList.add('fl');setTimeout(()=>e.classList.remove('fl'),2200)}}}
+ const c=B.data[S.book][S.ch],R=B.rg?.[S.book]?.[S.ch]||{};t.innerHTML=Object.keys(c).map(Number).sort((a,b)=>a-b).map(n=>`<p class="v" data-n="${n}" data-e="${R[n]||''}" data-m="${marks[S.book+' '+S.ch+':'+n]||''}"><b>${n}${R[n]>n?'-'+R[n]:''}</b>${esc(c[n])}</p>`).join('')+`<div class="pg"><button data-a="prev">‹ Previous</button><button data-a="next">Next ›</button></div>`;
+ markDock();save();$('#reader').scrollTop=0;if(fl){const e=t.querySelector(`[data-n="${fl}"]`)||[...t.querySelectorAll('.v[data-e]')].find(x=>x.dataset.e&&+x.dataset.n<=fl&&fl<=+x.dataset.e);if(e){e.scrollIntoView({block:'center'});e.classList.add('fl');setTimeout(()=>e.classList.remove('fl'),2200)}}}
 async function step(d){const B=await getBible(S.ver);if(!B)return;const cs=Object.keys(B.data[S.book]).map(Number).sort((a,b)=>a-b);let i=cs.indexOf(S.ch)+d;
  if(i<0||i>=cs.length){const bi=B.books.indexOf(S.book)+d;if(bi<0||bi>=B.books.length)return;S.book=B.books[bi];const c2=Object.keys(B.data[S.book]).map(Number).sort((a,b)=>a-b);S.ch=d>0?c2[0]:c2.at(-1)}else S.ch=cs[i];render()}
 function go(b,c,v,ver){if(ver&&ver!=S.ver&&vers.find(x=>x.id==ver))S.ver=ver;S.book=b;S.ch=c;setView('read');render(v)}
@@ -130,7 +171,7 @@ async function pickBook(){const B=await getBible(S.ver);if(!B)return;const g=(a)
  sh('Choose book',`<h2>Old Testament</h2>${g(B.books.slice(0,39))}<h2>New Testament</h2>${g(B.books.slice(39))}`)}
 $('#sh .bo').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
  if(b.dataset.b){const B=await getBible(S.ver),cs=Object.keys(B.data[b.dataset.b]).map(Number).sort((x,y)=>x-y);sh(b.dataset.b,`<div class="grid n">${cs.map(c=>`<button data-bk="${esc(b.dataset.b)}" data-c="${c}">${c}</button>`).join('')}</div>`)}
- else if(b.dataset.c){shut();go(b.dataset.bk,+b.dataset.c)}else if(b.dataset.sn!==undefined){const d=dock[+b.dataset.sn];d.note=$('#nt').value.trim();if(!d.note)delete d.note;save();shut();drawDock()}else if(b.dataset.ver){S.ver=b.dataset.ver;shut();render()}});
+ else if(b.dataset.c){shut();go(b.dataset.bk,+b.dataset.c)}else if(b.dataset.sn!==undefined){const d=dock[+b.dataset.sn];d.note=$('#nt').value.trim();if(!d.note)delete d.note;save();shut();drawDock()}else if(b.dataset.ver){S.ver=b.dataset.ver;shut();render();if(N.on)saveNotify()}else if(b.dataset.rs)doRestore(b.dataset.rs);else if(b.dataset.op)open(b.dataset.op,'_blank');else if(b.dataset.up)upload(b.dataset.up)});
 $('#ref').onclick=pickBook;
 $('#ver').onclick=()=>sh('Bible version',vers.length?vers.map(v=>`<button class="card" style="width:100%" data-ver="${v.id}"><div class="bd"><div class="t">${esc(v.id)}</div><div class="mu">${esc(v.label)}</div></div></button>`).join(''):'<p class="mu">No versions yet. Open More to sync or import.</p>');
 // ---------- search ----------
@@ -147,10 +188,14 @@ $('#q').addEventListener('keydown',e=>{if(e.key=='Enter'){const B=cache.get(S.ve
 // ---------- dock ----------
 const dk=d=>[d.v,d.b,d.c,d.n.join(',')].join('|');
 function addDock(d){if(dock.some(x=>dk(x)==dk(d))){toast('Already in dock');return}dock.unshift(d);save();drawDock();toast('Added to dock')}
-async function drawDock(){const p=$('#p-dock');p.innerHTML=`<h2>Dock</h2><p class="mu">Passages you keep for later. Select verses in the reader and tap Dock.</p><div class="row"><button class="btn" data-d="chap">+ Current chapter</button></div>`+(dock.length?dock.map((d,i)=>`<div class="card" data-i="${i}"><span class="rb"></span><button class="bd" data-d="open"><div class="t">${esc(d.b)} ${d.c}${d.n.length?':'+rng(d.n):''} <span class="mu">${esc(d.v)}</span></div><div class="p" id="dp${i}"></div>${d.note?`<div class="nt">${esc(d.note)}</div>`:''}</button><div><button class="ib" data-d="note" aria-label="Note">${ic('note')}</button><button class="ib" data-d="copy" aria-label="Copy">${ic('copy')}</button><button class="ib" data-d="share" aria-label="Share">${ic('share')}</button><button class="ib" data-d="del" aria-label="Remove">${ic('trash')}</button></div></div>`).join(''):'<p class="empty mu">Nothing saved yet.</p>');
+function markDock(){const t=$('#txt');if(!t||!t.querySelector('.v'))return;const s=new Set();let ch=false;
+ dock.forEach(d=>{if(d.b!=S.book||d.c!=S.ch)return;if(d.n.length)d.n.forEach(n=>s.add(+n));else ch=true});
+ t.querySelectorAll('.v').forEach(p=>{const n=+p.dataset.n,e=+p.dataset.e||n;let h=false;for(let k=n;k<=e&&!h;k++)h=s.has(k);p.classList.toggle('dk',h)});
+ let c=$('#cdk');if(ch&&!c){c=document.createElement('div');c.id='cdk';c.className='cdk';c.textContent='This whole chapter is in your dock';t.prepend(c)}else if(!ch&&c)c.remove()}
+async function drawDock(){markDock();const p=$('#p-dock');p.innerHTML=`<h2>Dock</h2><p class="mu">Passages you keep for later. Select verses in the reader and tap Dock. Docked verses show a gold bar and ribbon while you read.</p><div class="row"><button class="btn" data-d="chap">+ Current chapter</button><button class="btn" data-d="cup">Send to cloud</button><button class="btn" data-d="cdn">Import from cloud</button></div>`+(dock.length?dock.map((d,i)=>`<div class="card" data-i="${i}"><span class="rb"></span><button class="bd" data-d="open"><div class="t">${esc(d.b)} ${d.c}${d.n.length?':'+rng(d.n):''} <span class="mu">${esc(d.v)}</span></div><div class="p" id="dp${i}"></div>${d.note?`<div class="nt">${esc(d.note)}</div>`:''}</button><div><button class="ib" data-d="note" aria-label="Note">${ic('note')}</button><button class="ib" data-d="copy" aria-label="Copy">${ic('copy')}</button><button class="ib" data-d="share" aria-label="Share">${ic('share')}</button><button class="ib" data-d="del" aria-label="Remove">${ic('trash')}</button></div></div>`).join(''):'<p class="empty mu">Nothing saved yet.</p>');
  for(let i=0;i<dock.length;i++){const d=dock[i],B=await getBible(d.v),e=$('#dp'+i);if(e&&B&&B.data[d.b]){const c=B.data[d.b][d.c]||{};e.textContent=(d.n.length?d.n:Object.keys(c)).map(n=>c[n]).join(' ')}}}
 $('#p-dock').addEventListener('click',async e=>{const b=e.target.closest('[data-d]');if(!b)return;const a=b.dataset.d,i=+b.closest('[data-i]')?.dataset.i;
- if(a=='chap'){addDock({v:S.ver,b:S.book,c:S.ch,n:[]});return}const d=dock[i];
+ if(a=='chap'){addDock({v:S.ver,b:S.book,c:S.ch,n:[]});return}if(a=='cup'){sendSheet();return}if(a=='cdn'){pull();return}const d=dock[i];
  if(a=='open')go(d.b,d.c,d.n[0],d.v);else if(a=='note')sh(d.b+' '+d.c+(d.n.length?':'+rng(d.n):''),`<textarea id="nt" placeholder="Your note">${esc(d.note||'')}</textarea><div class="row"><button class="btn pri" data-sn="${i}">Save note</button></div>`);else if(a=='del'){dock.splice(i,1);save();drawDock()}
  else{const B=await getBible(d.v);if(!B)return;const n=d.n.length?d.n:Object.keys(B.data[d.b][d.c]).map(Number),t=fmt(B,d.v,d.b,d.c,n);a=='copy'?copy(t):share(t)}});
 // ---------- sync, import, backup ----------
@@ -161,32 +206,76 @@ function repos(){let r=S.repo.trim().replace(/^https?:\/\/github\.com\//,'').rep
 let syncing=false;
 async function sync(quiet){if(syncing)return;syncing=true;$('#sync').classList.add('spin');let add=0,upd=0,err='';
  try{let files=null;for(const c of repos()){try{const r=await fetch(`https://api.github.com/repos/${c.o}/${c.r}/contents/${c.d}`);if(r.ok){const j=await r.json();if(Array.isArray(j)){files=j;break}}else err='GitHub answered '+r.status}catch(e){err='No connection'}}
-  if(!files){try{const m=await(await fetch('bibles.json')).json();files=m.map(f=>({name:f,type:'file',download_url:new URL(f,location.href).href}))}catch(e){}}
+  if(!files){try{const m=await(await fetch('bibles.json',{cache:'no-cache'})).json();files=m.map(f=>typeof f=='string'?{name:f}:f).map(f=>({name:f.name,sha:f.sha,type:'file',download_url:new URL(encodeURIComponent(f.name),location.href).href}))}catch(e){}}
   if(!files){if(!quiet)toast(err||'Enter your GitHub folder in More');return}
-  for(const f of files){if(f.type!=='file'||!/\.json$/i.test(f.name)||/^(bibles|package|manifest)|backup/i.test(f.name))continue;const have=vers.find(v=>v.file===f.name);if(have&&(!f.sha||have.sha===f.sha))continue;
-   try{if(!quiet)toast('Downloading '+f.name+'…');const b=norm(await(await fetch(f.download_url)).json(),f.name);if(!b)continue;await saveBible(b,f.name,f.sha);have?upd++:add++}catch(e){}}
+  const js=new Set(files.filter(f=>/\.json$/i.test(f.name)).map(f=>f.name.replace(/\.json$/i,'').toLowerCase()));
+  for(const f of files){if(f.type!=='file'||!/\.(json|ewb)$/i.test(f.name)||/^(bibles|package|manifest)|backup/i.test(f.name))continue;if(/\.ewb$/i.test(f.name)&&js.has(f.name.replace(/\.ewb$/i,'').toLowerCase()))continue;const have=vers.find(v=>v.file===f.name);if(have&&(!f.sha||have.sha===f.sha))continue;
+   try{if(!quiet)toast('Downloading '+f.name+'…');const rp=await fetch(f.download_url),b=/\.ewb$/i.test(f.name)?await parseEwb(new Uint8Array(await rp.arrayBuffer()),f.name):norm(await rp.json(),f.name);if(!b)continue;await saveBible(b,f.name,f.sha);have?upd++:add++}catch(e){}}
   await loadVers();if(add||upd){toast(`Synced: ${add} new, ${upd} updated`);await render();drawMore()}else if(!quiet)toast('Already up to date')
  }finally{syncing=false;$('#sync').classList.remove('spin')}}
 $('#sync').onclick=()=>sync();
-async function restore(j){const mg=confirm('Merge this backup with your current dock and highlights?\n\nOK = merge\nCancel = choose replace instead');if(!mg&&!confirm('Replace your current dock and highlights with the backup?'))return;
- if(!mg){dock=[];marks={}}(j.dock||[]).forEach(d=>{const x=dock.find(y=>dk(y)==dk(d));if(!x)dock.push(d);else if(d.note&&!x.note)x.note=d.note});Object.assign(marks,j.marks||{});if(j.settings)S={...S,...j.settings};save();applyTheme();await render();drawDock();toast('Backup restored')}
-$('#imp').onchange=async e=>{for(const f of e.target.files){try{const j=JSON.parse(await f.text());if(j&&j.app=='scripture-reader'){await restore(j);continue}toast('Reading '+f.name+'…');const b=norm(j,f.name);if(!b){toast(f.name+' is not a recognised Bible file');continue}await saveBible(b,f.name);toast('Added '+b.id)}catch(x){toast('Could not read '+f.name)}}e.target.value='';await loadVers();await render();drawMore()};
-const bak=()=>JSON.stringify({app:'scripture-reader',schema:1,saved:new Date().toISOString(),dock,marks,settings:{theme:S.theme,size:S.size,nums:S.nums,ver:S.ver}},null,1),bname=()=>`scripture-backup-${new Date().toISOString().slice(0,10)}.json`;
+let pend=null;
+function restore(j){const d0=(Array.isArray(j.dock)?j.dock:[]).filter(d=>d&&d.b&&d.c&&Array.isArray(d.n)&&d.v),m0=Object.entries(j.marks&&typeof j.marks=='object'?j.marks:{}).filter(([k,v])=>/ \d+:\d+$/.test(k)&&[1,2,3].includes(+v));
+ if(!d0.length&&!m0.length&&!j.settings){toast('That backup is empty');return}
+ pend={dock:d0,marks:Object.fromEntries(m0),settings:j.settings};const dt=j.saved?new Date(j.saved):null;
+ sh('Restore backup',`<p class="mu">${dt&&!isNaN(dt)?'Saved '+esc(dt.toLocaleString())+(j.appVersion?' \u00b7 app v'+esc(j.appVersion):''):'Backup file'}</p><div class="card"><div class="bd"><div class="t">${d0.length} saved passage${d0.length==1?'':'s'}</div><div class="mu">${m0.length} highlight${m0.length==1?'':'s'}${j.settings?' \u00b7 settings':''}</div></div></div><div class="row"><button class="btn pri" data-rs="merge">Merge with mine</button><button class="btn" data-rs="replace">Replace mine</button></div><p class="mu">Merge keeps your current dock and highlights and adds the backup. Replace swaps them for the backup.</p>`)}
+async function doRestore(mode){if(!pend)return;const p=pend;pend=null;if(mode=='replace'){dock=[];marks={}}
+ p.dock.forEach(d=>{const x=dock.find(y=>dk(y)==dk(d));if(!x)dock.push(d);else if(d.note&&!x.note)x.note=d.note});Object.assign(marks,p.marks);
+ if(p.settings&&typeof p.settings=='object'){const{theme,size,nums,ver}=p.settings;if(['auto','light','dark'].includes(theme))S.theme=theme;if(+size>=14&&+size<=30)S.size=+size;if(typeof nums=='boolean')S.nums=nums;if(ver&&vers.some(v=>v.id==ver))S.ver=ver}
+ save();applyTheme();applySize();shut();await render();drawDock();drawMore();toast(`Restored ${p.dock.length} passages, ${Object.keys(p.marks).length} highlights`)}
+async function importFiles(fs){fs=[...fs];let ok=0;
+ for(const[i,f]of fs.entries()){const tag=fs.length>1?` (${i+1}/${fs.length})`:'';
+  try{const u=new Uint8Array(await f.arrayBuffer());
+   if(isEwb(u)){toast('Reading '+f.name+'\u2026'+tag);await new Promise(r=>setTimeout(r,30));const b=await parseEwb(u,f.name);if(!b){toast(f.name+' has no readable Bible text');continue}await saveBible(b,f.name);ok++;toast(`Added ${b.id} \u00b7 ${b.n.toLocaleString()} verses`);continue}
+   let j;try{j=JSON.parse(new TextDecoder().decode(u))}catch(x){toast(f.name+' is not a Bible (.json or .ewb) or backup file');continue}
+   if(j&&j.app=='scripture-reader'){restore(j);continue}
+   const b=norm(j,f.name);if(!b){toast(f.name+' is not a recognised Bible file');continue}await saveBible(b,f.name);ok++;toast('Added '+b.id)
+  }catch(x){toast('Could not read '+f.name)}}
+ await loadVers();if(ok){await render();drawMore()}}
+$('#imp').onchange=async e=>{const fs=[...e.target.files];await importFiles(fs);e.target.value=''};
+addEventListener('dragover',e=>e.preventDefault());addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer?.files?.length)importFiles(e.dataTransfer.files)});
+const bak=d=>JSON.stringify({app:'scripture-reader',schema:1,appVersion:VER,saved:new Date().toISOString(),dock,marks,...(d?{}:{settings:{theme:S.theme,size:S.size,nums:S.nums,ver:S.ver}})},null,1),bname=()=>`scripture-backup-${new Date().toISOString().slice(0,10)}.json`;
+// ---------- cloud folder (share links) ----------
+const web=u=>/^https?:\/\//i.test(u||''),prov=u=>!web(u)?'':/dropbox\.com/i.test(u)?'Dropbox':/drive\.google\.com|docs\.google\.com/i.test(u)?'Google Drive':/1drv\.ms|onedrive\.|sharepoint\.com/i.test(u)?'OneDrive':/\/s\/[\w-]+\/?$/.test(u)?'Nextcloud':'Link',det=u=>prov(u)?'Detected: '+prov(u):'';
+function direct(u){u=u.trim();const p=prov(u);
+ if(p=='Dropbox'){const x=new URL(u);x.searchParams.set('dl','1');x.searchParams.delete('raw');return x.href}
+ if(p=='Google Drive'){const m=u.match(/\/d\/([\w-]+)/)||u.match(/[?&]id=([\w-]+)/);return m?'https://drive.google.com/uc?export=download&id='+m[1]:u}
+ if(p=='OneDrive')return 'https://api.onedrive.com/v1.0/shares/u!'+btoa(u).replace(/=+$/,'').replace(/\+/g,'-').replace(/\//g,'_')+'/root/content';
+ if(p=='Nextcloud')return u.replace(/\/+$/,'')+'/download';
+ return u}
+async function pull(){const u=(S.cloudFile||'').trim();if(!web(u)){toast('Paste a link to the saved file in More > Cloud folder');return}
+ toast('Fetching from '+prov(u)+'…');
+ try{const r=await fetch(direct(u));if(!r.ok)throw Error(r.status);const j=JSON.parse(await r.text());if(j&&j.app=='scripture-reader')restore(j);else toast('That link is not a Scripture file')}
+ catch(e){sh('Could not read the link',`<p class="mu">${esc(prov(u))} may block direct reads from web apps, or the link is private or points to a folder. Check that sharing is set to anyone with the link and that it is the file itself. Otherwise, open the link, download the file and use Import from device.</p><div class="row"><button class="btn" data-op="${esc(u)}">Open link</button></div>`)}}
+function sendSheet(){const nm=Object.keys(marks).length;if(!dock.length&&!nm){toast('Your dock is empty');return}const p=prov(S.cloudDir);
+ sh('Send to cloud',`<p class="mu">${dock.length} saved passage${dock.length==1?'':'s'} and ${nm} highlight${nm==1?'':'s'} go into <b>scripture-dock.json</b>.</p><div class="row"><button class="btn pri" data-up="share">Share to Drive, Dropbox, OneDrive…</button><button class="btn" data-up="save">Download file</button>${p?`<button class="btn" data-up="open">Open ${esc(p)} folder</button>`:''}</div><p class="mu">${p?'Put the file in your linked folder. Replacing a file with the same name keeps its link working.':'Add a folder link in More > Cloud folder to open your folder from here.'}</p>`)}
+async function upload(a){const f=new File([bak(1)],'scripture-dock.json',{type:'application/json'});
+ if(a=='open'){if(web(S.cloudDir))open(S.cloudDir,'_blank');return}
+ if(a=='share'){if(navigator.canShare?.({files:[f]})){try{await navigator.share({files:[f]})}catch(x){}}else toast('File sharing is not supported here. Use Download');return}
+ const l=document.createElement('a');l.href=URL.createObjectURL(f);l.download=f.name;l.click();toast('Downloaded scripture-dock.json')}
 // ---------- more ----------
 function drawMore(){const p=$('#p-more');p.innerHTML=`<h2>Appearance</h2><div class="seg" id="tseg">${['auto','light','dark'].map(t=>`<button data-th="${t}" class="${S.theme==t?'on':''}">${t[0].toUpperCase()+t.slice(1)}</button>`).join('')}</div>
 <label class="mu" style="display:block;margin-top:12px">Text size</label><input type="range" id="sz" min="14" max="30" value="${S.size}">
-<h2>Bible versions</h2>${vers.map(v=>`<div class="card"><div class="bd"><div class="t">${esc(v.id)}</div><div class="mu">${esc(v.label)}</div></div><button class="ib" data-del="${v.id}" aria-label="Remove ${esc(v.id)}">${ic('trash')}</button></div>`).join('')||'<p class="mu">None yet.</p>'}
-<div class="row"><button class="btn" id="bimp">Import from device</button><button class="btn pri" id="bsync">Sync now</button></div>
+<h2>Bible versions</h2>${vers.map(v=>`<div class="card"><div class="bd"><div class="t">${esc(v.id)}</div><div class="mu">${esc(v.label)}${v.n?' \u00b7 '+v.n.toLocaleString()+' verses':''}</div></div><button class="ib" data-del="${v.id}" aria-label="Remove ${esc(v.id)}">${ic('trash')}</button></div>`).join('')||'<p class="mu">None yet.</p>'}
+<div class="row"><button class="btn" id="bimp">Import from device</button><button class="btn pri" id="bsync">Sync now</button></div><p class="mu">Import accepts .json files and EasyWorship .ewb Bibles. You can pick several at once.</p>
 <label class="mu" style="display:block">GitHub folder (optional if this page runs on github.io)</label><input type="text" id="repo" placeholder="owner/repo or owner/repo/folder" value="${esc(S.repo)}">
 <label class="tg"><span>Sync when the app opens</span><input type="checkbox" id="auto" ${S.auto?'checked':''}></label>
 <h2>Sharing</h2><label class="tg"><span>Include verse numbers in shared text</span><input type="checkbox" id="nums" ${S.nums?'checked':''}></label>
-<h2>Backup</h2><p class="mu">Saves your dock and highlights to a file you can load on another device with Import.</p><div class="row"><button class="btn" id="bsave">Save backup file</button><button class="btn" id="bshare">Share backup</button></div>`}
+<h2>Cloud folder</h2><p class="mu">Link a shared Dropbox, Google Drive or OneDrive folder to send docked verses to, and a link to the saved file to import from. Local backup below still works.</p>
+<label class="mu" style="display:block">Folder link (where to send)</label><input type="text" id="cdir" placeholder="Shared folder link" value="${esc(S.cloudDir)}"><div class="mu" id="cdirp">${det(S.cloudDir)}</div>
+<label class="mu" style="display:block;margin-top:8px">File link (where to import from)</label><input type="text" id="cfile" placeholder="Link to scripture-dock.json" value="${esc(S.cloudFile)}"><div class="mu" id="cfilep">${det(S.cloudFile)}</div>
+<div class="row"><button class="btn pri" id="cup">Send docked verses</button><button class="btn" id="cdn">Import from link</button></div>
+<h2>Daily verses</h2><label class="tg"><span>Send a random verse each day</span><input type="checkbox" id="nOn" ${N.on?'checked':''}></label>
+${N.slots.map((x,i)=>`<label class="tg"><span><input type="checkbox" data-ns="${i}" ${x.on?'checked':''}> ${x.k[0].toUpperCase()+x.k.slice(1)}</span><input type="time" data-nt="${i}" value="${x.t}"></label>`).join('')}
+<div class="row"><button class="btn" id="ntest">Send a test verse</button></div><p class="mu">Verses come from ${esc(S.ver||'your current version')}. They arrive on time while the app is open or recently used; when it is closed, your phone decides when to wake it.</p>
+<h2>Backup</h2><p class="mu">Saves your dock, notes, highlights and settings to a file. Import it on this or another device to bring them back.</p><div class="row"><button class="btn" id="bsave">Save backup file</button><button class="btn" id="bshare">Share backup</button><button class="btn" id="brest">Import backup</button></div>
+<h2>About</h2><p class="mu">Scripture v${VER}</p>`}
 $('#p-more').addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;
  if(b.dataset.th){S.theme=b.dataset.th;save();applyTheme();drawMore()}else if(b.dataset.del){if(confirm('Remove '+b.dataset.del+' from this device?')){await st('meta','readwrite',s=>s.delete(b.dataset.del));await st('bible','readwrite',s=>s.delete(b.dataset.del));cache.delete(b.dataset.del);await loadVers();await render();drawMore()}}
- else if(b.id=='bimp')$('#imp').click();else if(b.id=='bsync'){S.repo=$('#repo').value;save();sync()}
+ else if(b.id=='cup')sendSheet();else if(b.id=='cdn')pull();else if(b.id=='bimp'||b.id=='brest')$('#imp').click();else if(b.id=='bsync'){S.repo=$('#repo').value;save();sync()}
  else if(b.id=='bsave'){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([bak()],{type:'application/json'}));a.download=bname();a.click();toast('Backup saved')}
  else if(b.id=='bshare'){const f=new File([bak()],bname(),{type:'application/json'});if(navigator.canShare?.({files:[f]}))try{await navigator.share({files:[f]})}catch(x){}else toast('Sharing files is not supported here — use Save')}});
-$('#p-more').addEventListener('input',e=>{const t=e.target;if(t.id=='sz'){S.size=+t.value;applySize();save()}else if(t.id=='repo'){S.repo=t.value;save()}else if(t.id=='auto'){S.auto=t.checked;save()}else if(t.id=='nums'){S.nums=t.checked;save()}});
+$('#p-more').addEventListener('input',e=>{const t=e.target;if(t.id=='sz'){S.size=+t.value;applySize();save()}else if(t.id=='repo'){S.repo=t.value;save()}else if(t.id=='auto'){S.auto=t.checked;save()}else if(t.id=='nums'){S.nums=t.checked;save()}else if(t.id=='cdir'||t.id=='cfile'){S[t.id=='cdir'?'cloudDir':'cloudFile']=t.value.trim();save();$('#'+t.id+'p').textContent=det(t.value)}});
 // ---------- theme, views ----------
 const dm=matchMedia('(prefers-color-scheme:dark)'),dark=()=>S.theme=='dark'||(S.theme=='auto'&&dm.matches);
 function applyTheme(){document.documentElement.dataset.theme=dark()?'dark':'light';$('#th').innerHTML=ic(dark()?'sun':'moon');document.querySelector('meta[name=theme-color]').content=dark()?'#0f1220':'#f2f3ef'}
@@ -199,7 +288,23 @@ $('nav').innerHTML=[['read','book','Read'],['search','search','Search'],['dock',
 $('nav').onclick=e=>{const b=e.target.closest('button');if(b)setView(b.dataset.t)};addEventListener('resize',paint);
 $('#sync').innerHTML=ic('sync');
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+// ---------- daily verses (the service worker picks and shows them) ----------
+let N={on:false,slots:[{k:'morning',t:'07:00',on:1},{k:'afternoon',t:'13:00',on:1},{k:'night',t:'20:00',on:1}],...ls('sr.n',{})};
+const ping=async(m='check')=>{try{const r=await navigator.serviceWorker.ready;r.active&&r.active.postMessage({cmd:m})}catch(e){}};
+async function saveNotify(){localStorage.setItem('sr.n',JSON.stringify(N));const o=(await st('meta','readonly',x=>x.get('__notify')))||{};await st('meta','readwrite',x=>x.put({id:'__notify',on:N.on,slots:N.slots,ver:S.ver,last:o.last||{},seen:o.seen||[]}));ping()}
+$('#p-more').addEventListener('change',async e=>{const t=e.target;
+ if(t.id=='nOn'){if(t.checked){const p=window.Notification?await Notification.requestPermission():'denied';if(p!='granted'){t.checked=false;toast('Allow notifications for this site in your browser settings first');return}
+  try{const r=await navigator.serviceWorker.ready;await r.periodicSync?.register('daily-verse',{minInterval:36e5})}catch(x){}}
+  N.on=t.checked;await saveNotify();toast(N.on?'Daily verses on':'Daily verses off')}
+ else if(t.dataset.ns!==undefined){N.slots[+t.dataset.ns].on=t.checked?1:0;saveNotify()}
+ else if(t.dataset.nt!==undefined){N.slots[+t.dataset.nt].t=t.value||'07:00';saveNotify()}});
+$('#p-more').addEventListener('click',async e=>{if(e.target.id!='ntest')return;if(!window.Notification){toast('Notifications are not supported here');return}
+ if(Notification.permission!='granted'&&await Notification.requestPermission()!='granted'){toast('Allow notifications first');return}
+ if(!S.ver){toast('Add a Bible version first');return}await saveNotify();ping('test');toast('Test verse on its way')});
+setInterval(()=>{if(N.on&&!document.hidden)ping()},30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&N.on)ping()});
+navigator.serviceWorker?.addEventListener('message',e=>{const g=e.data&&e.data.go;if(g)go(g.b,g.c,g.v,g.ver)});
 // ---------- start ----------
 (async()=>{applyTheme();applySize();await loadVers();drawDock();drawMore();paint();await render();
- if(vers.length?S.auto&&repos().length:true)sync(!!vers.length).then(()=>{if(!S.ver&&vers.length){S.ver=vers[0].id;render()}})})();
+ const gq=new URLSearchParams(location.search).get('go');if(gq){try{const g=JSON.parse(gq);go(g.b,g.c,g.v,g.ver)}catch(e){}history.replaceState(null,'',location.pathname)}if(N.on)saveNotify();
+ if(vers.length?S.auto:true)sync(!!vers.length).then(()=>{if(!S.ver&&vers.length){S.ver=vers[0].id;render()}})})();
 </script></body></html>

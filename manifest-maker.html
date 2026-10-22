@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Make bibles.json</title>
+<style>
+:root{--bg:#f2f3ef;--sf:#fbfbf8;--ink:#1a2038;--mu:#626a80;--ln:#dcdfd6;--ac:#9b2335}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1220;--sf:#171b2e;--ink:#e7e4da;--mu:#9097ab;--ln:#2a3048;--ac:#e5788a}}
+body{margin:0;padding:max(20px,env(safe-area-inset-top)) 18px 40px;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:34rem;margin:0 auto}h1{font:600 24px Georgia,serif;margin:0 0 6px}p,li{color:var(--mu)}
+.btn{display:block;width:100%;margin:10px 0;padding:14px;border:1px solid var(--ln);border-radius:12px;background:var(--sf);color:var(--ink);font:600 16px inherit;text-align:center;cursor:pointer}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:var(--bg)}.btn:disabled{opacity:.45}
+ul{padding-left:20px}input[type=file]{display:none}
+</style></head><body><main>
+<h1>Make bibles.json</h1>
+<p>Pick all the Bible files (.json and .ewb) that go into your Cloudflare upload. Nothing is uploaded; only the file names and sizes are read.</p>
+<label class="btn pri" for="f">Choose Bible files</label><input type="file" id="f" multiple>
+<ul id="l"></ul>
+<button class="btn" id="dl" disabled>Download bibles.json</button>
+<button class="btn" id="sh" disabled>Share bibles.json</button>
+<p>Then put bibles.json in the same folder as index.html and upload everything to Cloudflare.</p>
+<script>
+const f=document.getElementById('f'),L=document.getElementById('l'),dl=document.getElementById('dl'),sh=document.getElementById('sh');let J='';
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+f.onchange=()=>{const a=[...f.files].filter(x=>/\.(json|ewb)$/i.test(x.name)&&!/^(bibles|package|manifest)|backup/i.test(x.name)).sort((x,y)=>x.name.localeCompare(y.name)).map(x=>({name:x.name,sha:x.size+'-'+x.lastModified}));
+ J=JSON.stringify(a,null,1);L.innerHTML=a.map(x=>'<li>'+esc(x.name)+'</li>').join('')||'<li>No Bible files found in that selection.</li>';dl.disabled=sh.disabled=!a.length};
+dl.onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([J],{type:'application/json'}));a.download='bibles.json';a.click()};
+sh.onclick=async()=>{const x=new File([J],'bibles.json',{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[x]})){try{await navigator.share({files:[x]})}catch(e){}}else alert('Sharing files is not supported here. Use Download instead.')};
+</script></main></body></html>
